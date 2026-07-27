@@ -531,5 +531,70 @@ if(reduceMotion){
   cancelAnimationFrame && (function(){})();
 }
 </script>
+  <!-- Sistema de aviso de nova versão -->
+<div id="update-banner" style="
+  display: none;
+  position: fixed;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  z-index: 99999;
+  background: #0a0b0d;
+  border-top: 2px solid #E8792B;
+  color: #f5f5f5;
+  padding: 14px 20px;
+  font-family: 'Inter', sans-serif;
+  font-size: 14px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 16px;
+  box-shadow: 0 -4px 20px rgba(0,0,0,0.4);
+">
+  <span>🔄 Nova versão do sistema disponível.</span>
+  <button onclick="location.reload()" style="
+    background: #E8792B;
+    color: #0a0b0d;
+    border: none;
+    padding: 8px 18px;
+    border-radius: 4px;
+    font-weight: 700;
+    cursor: pointer;
+    font-family: 'Inter', sans-serif;
+  ">Atualizar agora</button>
+</div>
+
+<script>
+(function () {
+  var CURRENT_VERSION = null;
+  var CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
+
+  function checkVersion() {
+    fetch('version.json?t=' + Date.now())
+      .then(function (res) { return res.json(); })
+      .then(function (data) {
+        if (CURRENT_VERSION === null) {
+          CURRENT_VERSION = data.version;
+          return;
+        }
+        if (data.version !== CURRENT_VERSION) {
+          document.getElementById('update-banner').style.display = 'flex';
+        }
+      })
+      .catch(function () {
+        // Falha silenciosa: offline ou version.json inacessível
+      });
+  }
+
+  checkVersion();
+  setInterval(checkVersion, CHECK_INTERVAL_MS);
+
+  document.addEventListener('visibilitychange', function () {
+    if (document.visibilityState === 'visible') {
+      checkVersion();
+    }
+  });
+})();
+</script>
 </body>
 </html>
