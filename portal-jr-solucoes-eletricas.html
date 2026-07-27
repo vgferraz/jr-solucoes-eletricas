@@ -531,7 +531,8 @@ if(reduceMotion){
   cancelAnimationFrame && (function(){})();
 }
 </script>
-  <!-- Sistema de aviso de nova versão -->
+
+<!-- Sistema de aviso de nova versão -->
 <div id="update-banner" style="
   display: none;
   position: fixed;
@@ -567,18 +568,29 @@ if(reduceMotion){
 <script>
 (function () {
   var CURRENT_VERSION = null;
+  var PENDING_VERSION = null;
   var CHECK_INTERVAL_MS = 24 * 60 * 60 * 1000; // 24 horas
+  var PAGE_LOAD_TIME = Date.now();
+  var GRACE_PERIOD_MS = 15 * 1000; // 15 segundos
 
   function checkVersion() {
-    fetch('version.json?t=' + Date.now())
+    if (Date.now() - PAGE_LOAD_TIME < GRACE_PERIOD_MS) return;
+
+    fetch('version.json?t=' + Date.now(), { cache: 'no-store' })
       .then(function (res) { return res.json(); })
       .then(function (data) {
         if (CURRENT_VERSION === null) {
           CURRENT_VERSION = data.version;
           return;
         }
-        if (data.version !== CURRENT_VERSION) {
+        if (data.version === CURRENT_VERSION) {
+          PENDING_VERSION = null;
+          return;
+        }
+        if (PENDING_VERSION === data.version) {
           document.getElementById('update-banner').style.display = 'flex';
+        } else {
+          PENDING_VERSION = data.version;
         }
       })
       .catch(function () {
