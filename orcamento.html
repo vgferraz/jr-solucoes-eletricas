@@ -1204,10 +1204,10 @@ td input[type=text]:focus{
 
   <div class="topbar-actions">
     <button class="primary" onclick="irParaInicio()">🏠 Início</button>
-    <button onclick="novoOrcamento()">🔄 Novo</button>
+    <button id="btnNovo" onclick="novoOrcamento()">🔄 Novo</button>
     <button onclick="abrirHistorico()">📂 Histórico</button>
-    <button onclick="salvarOrcamento(true)">💾 Salvar</button>
-    <button onclick="enviarWhatsApp()">📲 WhatsApp</button>
+    <button id="btnSalvar" onclick="salvarOrcamento(true)">💾 Salvar</button>
+    <button id="btnWhatsApp" onclick="enviarWhatsApp()">📲 WhatsApp</button>
     <button id="btnPdfOrc" class="primary" onclick="gerarPDFOrcamento()">📄 Emitir Orçamento</button>
     <button id="btnPdfOS"  class="primary" onclick="gerarPDFOS()" style="display:none;">📄 Emitir O.S.</button>
   </div>
@@ -1570,9 +1570,9 @@ Os serviços serão executados seguindo padrão técnico, organização da infra
 <!-- Barra de ações mobile -->
 <div class="mobile-actions">
   <button class="primary" onclick="irParaInicio()">🏠<span>Início</span></button>
-  <button onclick="novoOrcamento()">🔄<span>Novo</span></button>
+  <button id="btnNovoMobile" onclick="novoOrcamento()">🔄<span>Novo</span></button>
   <button onclick="abrirHistorico()">📂<span>Histórico</span></button>
-  <button onclick="salvarOrcamento(true)">💾<span>Salvar</span></button>
+  <button id="btnSalvarMobile" onclick="salvarOrcamento(true)">💾<span>Salvar</span></button>
   <button id="btnPdfOrcMobile" class="primary" onclick="gerarPDFOrcamento()">📄<span>Emitir Orç.</span></button>
   <button id="btnPdfOSMobile"  class="primary" onclick="gerarPDFOS()" style="display:none;">📄<span>Emitir O.S.</span></button>
 </div>
@@ -2144,6 +2144,11 @@ async function abrirHistorico(){
   document.getElementById('btnPdfOS').style.display    = 'none';
   document.getElementById('btnPdfOrcMobile') && (document.getElementById('btnPdfOrcMobile').style.display = 'none');
   document.getElementById('btnPdfOSMobile')  && (document.getElementById('btnPdfOSMobile').style.display  = 'none');
+  document.getElementById('btnNovo')         && (document.getElementById('btnNovo').style.display         = 'none');
+  document.getElementById('btnSalvar')       && (document.getElementById('btnSalvar').style.display       = 'none');
+  document.getElementById('btnWhatsApp')     && (document.getElementById('btnWhatsApp').style.display     = 'none');
+  document.getElementById('btnNovoMobile')   && (document.getElementById('btnNovoMobile').style.display   = 'none');
+  document.getElementById('btnSalvarMobile') && (document.getElementById('btnSalvarMobile').style.display = 'none');
   await renderHistorico();
   window.scrollTo(0,0);
 }
@@ -2157,6 +2162,11 @@ function irParaInicio(){
   document.getElementById('btnPdfOS').style.display     = 'none';
   document.getElementById('btnPdfOrcMobile') && (document.getElementById('btnPdfOrcMobile').style.display = '');
   document.getElementById('btnPdfOSMobile')  && (document.getElementById('btnPdfOSMobile').style.display  = 'none');
+  document.getElementById('btnNovo')         && (document.getElementById('btnNovo').style.display         = '');
+  document.getElementById('btnSalvar')       && (document.getElementById('btnSalvar').style.display       = '');
+  document.getElementById('btnWhatsApp')     && (document.getElementById('btnWhatsApp').style.display     = '');
+  document.getElementById('btnNovoMobile')   && (document.getElementById('btnNovoMobile').style.display   = '');
+  document.getElementById('btnSalvarMobile') && (document.getElementById('btnSalvarMobile').style.display = '');
 }
 
 // Mantido por compatibilidade com qualquer chamada antiga
