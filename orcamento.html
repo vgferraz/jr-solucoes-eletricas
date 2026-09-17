@@ -2960,7 +2960,7 @@ function empacotarConteudo(unidades, alturaPrimeiraPagina, alturaDemaisPaginas){
       if(altura > alturaRestante && paginas[paginas.length-1].length > 0){
         novaPagina();
       }
-      paginas[paginas.length-1].push({ tipo:'bloco', html: un.html, colar: !!un.colar });
+      paginas[paginas.length-1].push({ tipo:'bloco', html: un.html, colar: !!un.colar, altura });
       alturaRestante -= altura;
 
     } else if(un.tipo === 'tabela'){
@@ -2976,14 +2976,17 @@ function empacotarConteudo(unidades, alturaPrimeiraPagina, alturaDemaisPaginas){
         alturaRestante -= (tituloAltura + theadAltura);
 
         const linhasDaPagina = [];
+        let alturaChunk = tituloAltura + theadAltura;
         while(i < un.linhas.length && alturasLinhas[i] <= alturaRestante){
           linhasDaPagina.push(un.linhas[i]);
+          alturaChunk += alturasLinhas[i];
           alturaRestante -= alturasLinhas[i];
           i++;
         }
         // Se nenhuma linha coube (linha maior que a página inteira), força ao menos uma
         if(linhasDaPagina.length === 0 && i < un.linhas.length){
           linhasDaPagina.push(un.linhas[i]);
+          alturaChunk += alturasLinhas[i];
           i++;
         }
 
@@ -2995,7 +2998,8 @@ function empacotarConteudo(unidades, alturaPrimeiraPagina, alturaDemaisPaginas){
           theadHTML: un.theadHTML,
           tituloHTML: un.tituloHTML || '',
           linhas: linhasDaPagina,
-          colar: false
+          colar: false,
+          altura: alturaChunk
         });
 
         if(i < un.linhas.length) novaPagina();
@@ -3004,6 +3008,54 @@ function empacotarConteudo(unidades, alturaPrimeiraPagina, alturaDemaisPaginas){
   }
 
   return paginas;
+}
+
+/* Divide um texto longo em parágrafos menores para que o paginador consiga distribuí-los
+   normalmente entre páginas, em vez de tratar o texto inteiro como um único bloco
+   indivisível (que, se maior que uma página inteira, nunca consegue ser encaixado). */
+function dividirTextoEmParagrafos(texto, maxChars = 500){
+  const brutos = String(texto).split(/\n+/).map(p => p.trim()).filter(Boolean);
+  const paragrafos = [];
+  for(const par of brutos){
+    if(par.length <= maxChars){
+      paragrafos.push(par);
+      continue;
+    }
+    // Parágrafo único muito longo (sem quebras de linha) — corta em pedaços menores
+    // no espaço em branco mais próximo do limite, para nunca gerar um bloco atômico
+    // maior do que uma página inteira consegue comportar.
+    let resto = par;
+    while(resto.length > maxChars){
+      let corte = resto.lastIndexOf(' ', maxChars);
+      if(corte <= 0) corte = maxChars;
+      paragrafos.push(resto.slice(0, corte).trim());
+      resto = resto.slice(corte).trim();
+    }
+    if(resto) paragrafos.push(resto);
+  }
+  return paragrafos;
+}
+
+/* Empurra um texto longo para a lista de unidades como uma série de parágrafos
+   independentes (em vez de um bloco único gigante), preservando a aparência de uma
+   única caixa contínua mesmo quando o texto atravessa várias páginas. */
+function empurrarTextoEmParagrafos(unidades, texto, classeCSS){
+  const paragrafos = dividirTextoEmParagrafos(texto);
+  if(paragrafos.length === 0){
+    unidades.push({ tipo:'bloco', html: `<div class="${classeCSS}" style="margin-bottom:12px;"></div>` });
+    return;
+  }
+  paragrafos.forEach((par, i) => {
+    const primeiro = i === 0;
+    const ultimo   = i === paragrafos.length - 1;
+    const borda =
+      `border-left:1px solid #eee;border-right:1px solid #eee;border-radius:0;` +
+      (primeiro ? `border-top:1px solid #eee;border-top-left-radius:4px;border-top-right-radius:4px;`
+                : `border-top:none;margin-top:-1px;`) +
+      (ultimo   ? `border-bottom:1px solid #eee;border-bottom-left-radius:4px;border-bottom-right-radius:4px;margin-bottom:12px;`
+                : `border-bottom:none;`);
+    unidades.push({ tipo:'bloco', html: `<div class="${classeCSS}" style="${borda}">${par}</div>` });
+  });
 }
 
 async function construirPaginasPDF(d){
@@ -3115,18 +3167,12 @@ async function construirPaginasPDF(d){
      aproveitando o espaço restante da última página de conteúdo em vez de
      sempre forçar uma página nova ── */
   if(d.escopo){
-    unidades.push({ tipo:'bloco', html: `
-      <div class="pdf-section">
-        <div class="pdf-section-header">Escopo do Serviço</div>
-        <div class="pdf-text">${d.escopo}</div>
-      </div>` });
+    unidades.push({ tipo:'bloco', html: `<div class="pdf-section-header">Escopo do Serviço</div>` });
+    empurrarTextoEmParagrafos(unidades, d.escopo, 'pdf-text');
   }
 
-  unidades.push({ tipo:'bloco', html: `
-    <div class="pdf-section">
-      <div class="pdf-section-header">Observações e Condições</div>
-      <div class="pdf-obs">${d.observacoes || ''}</div>
-    </div>` });
+  unidades.push({ tipo:'bloco', html: `<div class="pdf-section-header">Observações e Condições</div>` });
+  empurrarTextoEmParagrafos(unidades, d.observacoes || '', 'pdf-obs');
 
   unidades.push({ tipo:'bloco', html: `
     <div class="pdf-sig-row" style="padding-top:70px;">
@@ -3189,10 +3235,27 @@ async function construirPaginasPDF(d){
         const alturaReal = medirBlocoHTML(cabecalhoDaPagina + juntarHTML(paginasConteudo[p]));
         if(alturaReal <= disponivel) break;
 
-        const idx = indiceUltimoRemovivel(paginasConteudo[p]);
-        if(idx < 0) break; // não há mais nada removível com segurança nesta página
+        const excesso = alturaReal - disponivel;
 
-        const itensMovidos = paginasConteudo[p].splice(idx);
+        // Em vez de remover 1 item por vez e remedir o layout inteiro a cada remoção
+        // (o que em textos longos, com muitos itens, exige centenas de reflows e trava
+        // a aba), usamos as alturas já calculadas na montagem para remover de uma vez
+        // todos os itens necessários para cobrir o excesso medido. A altura real da
+        // página é conferida de novo só depois do lote inteiro ser movido.
+        let idx = paginasConteudo[p].length - 1;
+        let removidoEstimado = 0;
+        let candidato = -1;
+        while(idx >= 0){
+          removidoEstimado += (paginasConteudo[p][idx].altura || 0);
+          if(!paginasConteudo[p][idx].colar){
+            candidato = idx;
+            if(removidoEstimado >= excesso) break;
+          }
+          idx--;
+        }
+        if(candidato < 0) break; // não há mais nada removível com segurança nesta página
+
+        const itensMovidos = paginasConteudo[p].splice(candidato);
         if(!paginasConteudo[p+1]) paginasConteudo.push([]);
         paginasConteudo[p+1].unshift(...itensMovidos);
         mudou = true;
@@ -3229,6 +3292,7 @@ async function construirPaginasPDF(d){
           atual.tabelaId === anterior.tabelaId
         ){
           anterior.linhas = anterior.linhas.concat(atual.linhas);
+          anterior.altura = (anterior.altura || 0) + (atual.altura || 0);
           pagina.splice(i, 1);
           mudou = true;
         }
