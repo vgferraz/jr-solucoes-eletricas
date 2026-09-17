@@ -1204,10 +1204,10 @@ td input[type=text]:focus{
 
   <div class="topbar-actions">
     <button class="primary" onclick="irParaInicio()">🏠 Início</button>
-    <button id="btnNovo" onclick="novoOrcamento()">🔄 Novo</button>
+    <button onclick="novoOrcamento()">🔄 Novo</button>
     <button onclick="abrirHistorico()">📂 Histórico</button>
-    <button id="btnSalvar" onclick="salvarOrcamento(true)">💾 Salvar</button>
-    <button id="btnWhatsApp" onclick="enviarWhatsApp()">📲 WhatsApp</button>
+    <button onclick="salvarOrcamento(true)">💾 Salvar</button>
+    <button onclick="enviarWhatsApp()">📲 WhatsApp</button>
     <button id="btnPdfOrc" class="primary" onclick="gerarPDFOrcamento()">📄 Emitir Orçamento</button>
     <button id="btnPdfOS"  class="primary" onclick="gerarPDFOS()" style="display:none;">📄 Emitir O.S.</button>
   </div>
@@ -1570,9 +1570,9 @@ Os serviços serão executados seguindo padrão técnico, organização da infra
 <!-- Barra de ações mobile -->
 <div class="mobile-actions">
   <button class="primary" onclick="irParaInicio()">🏠<span>Início</span></button>
-  <button id="btnNovoMobile" onclick="novoOrcamento()">🔄<span>Novo</span></button>
+  <button onclick="novoOrcamento()">🔄<span>Novo</span></button>
   <button onclick="abrirHistorico()">📂<span>Histórico</span></button>
-  <button id="btnSalvarMobile" onclick="salvarOrcamento(true)">💾<span>Salvar</span></button>
+  <button onclick="salvarOrcamento(true)">💾<span>Salvar</span></button>
   <button id="btnPdfOrcMobile" class="primary" onclick="gerarPDFOrcamento()">📄<span>Emitir Orç.</span></button>
   <button id="btnPdfOSMobile"  class="primary" onclick="gerarPDFOS()" style="display:none;">📄<span>Emitir O.S.</span></button>
 </div>
@@ -1877,7 +1877,7 @@ async function dbExcluirFotosOS(id){
 }
 
 /* Renderiza um array de páginas HTML em um objeto jsPDF (sem salvar/baixar) */
-async function gerarObjetoPDF(paginas){
+async function gerarObjetoPDF(paginas, onProgresso){
   const root = document.getElementById('pdf-root');
   const PG_W = 794, PG_H = 1123;
   const { jsPDF } = window.jspdf;
@@ -1886,11 +1886,18 @@ async function gerarObjetoPDF(paginas){
   const PDF_H = pdf.internal.pageSize.getHeight();
 
   for(let i = 0; i < paginas.length; i++){
+    if(onProgresso) onProgresso(i + 1, paginas.length);
+
     root.innerHTML = paginas[i];
     root.style.display = 'block';
-    await new Promise(r => setTimeout(r, 120));
+
+    // Garante que o navegador realmente pinte a tela (texto de progresso, layout da página)
+    // antes de iniciar o trabalho pesado e síncrono do html2canvas.
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise(r => setTimeout(r, 60));
+
     const canvas = await html2canvas(root.querySelector('.pdf-page'), {
-      scale:2, useCORS:true, backgroundColor:'#ffffff',
+      scale:1.5, useCORS:true, backgroundColor:'#ffffff',
       width:PG_W, height:PG_H, windowWidth:PG_W, windowHeight:PG_H,
       scrollX:0, scrollY:0
     });
@@ -1898,6 +1905,10 @@ async function gerarObjetoPDF(paginas){
     pdf.addImage(canvas.toDataURL('image/jpeg', 0.97), 'JPEG', 0, 0, PDF_W, PDF_H);
     root.style.display = 'none';
     root.innerHTML = '';
+
+    // Cede o controle ao navegador entre páginas para evitar o aviso de "página sem resposta"
+    // em orçamentos longos, com muitas páginas geradas em sequência.
+    await new Promise(r => setTimeout(r, 30));
   }
 
   return pdf;
@@ -2009,9 +2020,15 @@ async function abrirOrcamento(id){
   const btnAbrir = document.querySelector(`button[onclick="abrirOrcamento('${id}')"]`);
   if(btnAbrir){ btnAbrir.innerHTML = '⏳ Gerando...'; btnAbrir.disabled = true; }
 
+  // Cede o controle ao navegador para o botão "Gerando..." realmente aparecer
+  // antes de iniciar o trabalho pesado de montagem/medição das páginas.
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+
   try{
-    const paginas = construirPaginasPDF(rec.orcamento);
-    const pdf     = await gerarObjetoPDF(paginas);
+    const paginas = await construirPaginasPDF(rec.orcamento);
+    const pdf     = await gerarObjetoPDF(paginas, (atual, total) => {
+      if(btnAbrir) btnAbrir.innerHTML = `⏳ Gerando... (${atual}/${total})`;
+    });
     const blob    = pdf.output('blob');
     window.open(URL.createObjectURL(blob), '_blank');
   } catch(err){
@@ -2144,11 +2161,6 @@ async function abrirHistorico(){
   document.getElementById('btnPdfOS').style.display    = 'none';
   document.getElementById('btnPdfOrcMobile') && (document.getElementById('btnPdfOrcMobile').style.display = 'none');
   document.getElementById('btnPdfOSMobile')  && (document.getElementById('btnPdfOSMobile').style.display  = 'none');
-  document.getElementById('btnNovo')         && (document.getElementById('btnNovo').style.display         = 'none');
-  document.getElementById('btnSalvar')       && (document.getElementById('btnSalvar').style.display       = 'none');
-  document.getElementById('btnWhatsApp')     && (document.getElementById('btnWhatsApp').style.display     = 'none');
-  document.getElementById('btnNovoMobile')   && (document.getElementById('btnNovoMobile').style.display   = 'none');
-  document.getElementById('btnSalvarMobile') && (document.getElementById('btnSalvarMobile').style.display = 'none');
   await renderHistorico();
   window.scrollTo(0,0);
 }
@@ -2162,11 +2174,6 @@ function irParaInicio(){
   document.getElementById('btnPdfOS').style.display     = 'none';
   document.getElementById('btnPdfOrcMobile') && (document.getElementById('btnPdfOrcMobile').style.display = '');
   document.getElementById('btnPdfOSMobile')  && (document.getElementById('btnPdfOSMobile').style.display  = 'none');
-  document.getElementById('btnNovo')         && (document.getElementById('btnNovo').style.display         = '');
-  document.getElementById('btnSalvar')       && (document.getElementById('btnSalvar').style.display       = '');
-  document.getElementById('btnWhatsApp')     && (document.getElementById('btnWhatsApp').style.display     = '');
-  document.getElementById('btnNovoMobile')   && (document.getElementById('btnNovoMobile').style.display   = '');
-  document.getElementById('btnSalvarMobile') && (document.getElementById('btnSalvarMobile').style.display = '');
 }
 
 // Mantido por compatibilidade com qualquer chamada antiga
@@ -2248,14 +2255,17 @@ async function gerarPDFOrcamento(){
 
   try{
     await new Promise(r => setTimeout(r, 100));
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
     const doc     = document.getElementById('documento').value;
     const d       = coletarDados();
-    const paginas = construirPaginasPDF(d);
+    const paginas = await construirPaginasPDF(d);
     const numero  = d.proposta.documento;
 
     // Gera o PDF para download
-    const pdf = await gerarObjetoPDF(paginas);
+    const pdf = await gerarObjetoPDF(paginas, (atual, total) => {
+      btn.textContent = `⏳ Gerando... (${atual}/${total})`;
+    });
 
     // Salva apenas os dados no Histórico (sem embutir o PDF)
     const snap = coletarSnapshotCompleto();
@@ -2289,12 +2299,15 @@ async function gerarPDFOS(){
   btn.disabled = true;
 
   await new Promise(r => setTimeout(r, 100));
+  await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
 
   const d  = coletarDados();
   const os = coletarDadosOS();
-  const paginas = construirPaginasOS(d, os);
+  const paginas = await construirPaginasOS(d, os);
 
-  await renderizarPaginas(paginas, `OrdemServico-${os.documento}.pdf`);
+  await renderizarPaginas(paginas, `OrdemServico-${os.documento}.pdf`, (atual, total) => {
+    btn.textContent = `⏳ Gerando... (${atual}/${total})`;
+  });
 
   // Salva os dados e fotos da O.S. na nuvem, para poder consultar depois
   const doc = os.documento;
@@ -2312,7 +2325,7 @@ async function gerarPDFOS(){
 }
 
 /* ── MOTOR DE RENDERIZAÇÃO PDF (compartilhado) ── */
-async function renderizarPaginas(paginas, nomeArquivo){
+async function renderizarPaginas(paginas, nomeArquivo, onProgresso){
   const root = document.getElementById('pdf-root');
   const PG_W = 794;
   const PG_H = 1123;
@@ -2323,13 +2336,17 @@ async function renderizarPaginas(paginas, nomeArquivo){
   const PDF_H = pdf.internal.pageSize.getHeight();
 
   for(let i = 0; i < paginas.length; i++){
+    if(onProgresso) onProgresso(i + 1, paginas.length);
+
     root.innerHTML = paginas[i];
     root.style.display = 'block';
 
-    await new Promise(r => setTimeout(r, 120));
+    // Garante repaint (progresso/layout) antes do trabalho pesado e síncrono do html2canvas
+    await new Promise(r => requestAnimationFrame(() => requestAnimationFrame(r)));
+    await new Promise(r => setTimeout(r, 60));
 
     const canvas = await html2canvas(root.querySelector('.pdf-page'), {
-      scale: 2,
+      scale: 1.5,
       useCORS: true,
       backgroundColor: '#ffffff',
       width: PG_W,
@@ -2346,6 +2363,9 @@ async function renderizarPaginas(paginas, nomeArquivo){
 
     root.style.display = 'none';
     root.innerHTML = '';
+
+    // Cede o controle ao navegador entre páginas, evitando o aviso de "página sem resposta"
+    await new Promise(r => setTimeout(r, 30));
   }
 
   pdf.save(nomeArquivo);
@@ -2769,7 +2789,7 @@ function coletarDadosOS(){
   };
 }
 
-function construirPaginasOS(d, os){
+async function construirPaginasOS(d, os){
   const paginas = [];
 
   /* ── PÁGINA DE DADOS DA OS ── */
@@ -2986,7 +3006,7 @@ function empacotarConteudo(unidades, alturaPrimeiraPagina, alturaDemaisPaginas){
   return paginas;
 }
 
-function construirPaginasPDF(d){
+async function construirPaginasPDF(d){
 
   const cabecalho = cabecalhoHTML(d);
   const alturaCabecalho = medirBlocoHTML(cabecalho) + PDF_MARGEM_CABECALHO;
@@ -3226,6 +3246,11 @@ function construirPaginasPDF(d){
     const b = corrigirOrfaos();
     const c = fundirTabelasAdjacentes();
     if(!a && !b && !c) break;
+    // Cede o controle ao navegador entre rodadas de reajuste — em orçamentos com
+    // textos muito longos (muitas páginas), essa etapa de medição pode envolver
+    // muitas leituras de layout seguidas, e sem essa pausa o navegador pode
+    // acusar "página sem resposta" mesmo que o processo esteja funcionando normalmente.
+    await new Promise(r => setTimeout(r, 0));
   }
 
   // Remove páginas que ficaram vazias após as reorganizações acima
