@@ -3039,7 +3039,7 @@ function dividirTextoEmParagrafos(texto, maxChars = 500){
 /* Empurra um texto longo para a lista de unidades como uma série de parágrafos
    independentes (em vez de um bloco único gigante), preservando a aparência de uma
    única caixa contínua mesmo quando o texto atravessa várias páginas. */
-function empurrarTextoEmParagrafos(unidades, texto, classeCSS){
+function empurrarTextoEmParagrafos(unidades, texto, classeCSS, padH = '8px', padV = '8px'){
   const paragrafos = dividirTextoEmParagrafos(texto);
   if(paragrafos.length === 0){
     unidades.push({ tipo:'bloco', html: `<div class="${classeCSS}" style="margin-bottom:12px;"></div>` });
@@ -3050,6 +3050,8 @@ function empurrarTextoEmParagrafos(unidades, texto, classeCSS){
     const ultimo   = i === paragrafos.length - 1;
     const borda =
       `border-left:1px solid #eee;border-right:1px solid #eee;border-radius:0;` +
+      `padding-left:${padH};padding-right:${padH};` +
+      `padding-top:${primeiro ? padV : '1.5px'};padding-bottom:${ultimo ? padV : '1.5px'};` +
       (primeiro ? `border-top:1px solid #eee;border-top-left-radius:4px;border-top-right-radius:4px;`
                 : `border-top:none;margin-top:-1px;`) +
       (ultimo   ? `border-bottom:1px solid #eee;border-bottom-left-radius:4px;border-bottom-right-radius:4px;margin-bottom:12px;`
@@ -3168,11 +3170,11 @@ async function construirPaginasPDF(d){
      sempre forçar uma página nova ── */
   if(d.escopo){
     unidades.push({ tipo:'bloco', html: `<div class="pdf-section-header">Escopo do Serviço</div>` });
-    empurrarTextoEmParagrafos(unidades, d.escopo, 'pdf-text');
+    empurrarTextoEmParagrafos(unidades, d.escopo, 'pdf-text', '8px', '8px');
   }
 
   unidades.push({ tipo:'bloco', html: `<div class="pdf-section-header">Observações e Condições</div>` });
-  empurrarTextoEmParagrafos(unidades, d.observacoes || '', 'pdf-obs');
+  empurrarTextoEmParagrafos(unidades, d.observacoes || '', 'pdf-obs', '12px', '10px');
 
   unidades.push({ tipo:'bloco', html: `
     <div class="pdf-sig-row" style="padding-top:70px;">
