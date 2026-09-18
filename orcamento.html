@@ -3169,11 +3169,11 @@ async function construirPaginasPDF(d){
      aproveitando o espaço restante da última página de conteúdo em vez de
      sempre forçar uma página nova ── */
   if(d.escopo){
-    unidades.push({ tipo:'bloco', html: `<div class="pdf-section-header">Escopo do Serviço</div>` });
+    unidades.push({ tipo:'bloco', headerFlag:true, html: `<div class="pdf-section-header">Escopo do Serviço</div>` });
     empurrarTextoEmParagrafos(unidades, d.escopo, 'pdf-text', '8px', '8px');
   }
 
-  unidades.push({ tipo:'bloco', html: `<div class="pdf-section-header">Observações e Condições</div>` });
+  unidades.push({ tipo:'bloco', headerFlag:true, html: `<div class="pdf-section-header">Observações e Condições</div>` });
   empurrarTextoEmParagrafos(unidades, d.observacoes || '', 'pdf-obs', '12px', '10px');
 
   unidades.push({ tipo:'bloco', html: `
@@ -3268,6 +3268,26 @@ async function construirPaginasPDF(d){
 
   /* Garante que nenhuma página comece com um item "colar" isolado — se acontecer,
      puxa esse item de volta para o fim da página anterior (onde ele deveria estar). */
+  /* Evita que um título de seção (ex: "Observações e Condições") fique sozinho na
+     última linha de uma página, com todo o texto correspondente empurrado para a
+     página seguinte — efeito de "título órfão". Nesse caso, o título acompanha o
+     texto para a página de baixo. */
+  function corrigirCabecalhosOrfaos(){
+    let mudou = false;
+    for(let p = 0; p < paginasConteudo.length; p++){
+      const pagina = paginasConteudo[p];
+      if(pagina.length === 0) continue;
+      const ultimo = pagina[pagina.length - 1];
+      if(ultimo.headerFlag){
+        pagina.pop();
+        if(!paginasConteudo[p+1]) paginasConteudo.push([]);
+        paginasConteudo[p+1].unshift(ultimo);
+        mudou = true;
+      }
+    }
+    return mudou;
+  }
+
   function corrigirOrfaos(){
     let mudou = false;
     for(let p = 1; p < paginasConteudo.length; p++){
@@ -3311,7 +3331,8 @@ async function construirPaginasPDF(d){
     const a = verificarAlturas();
     const b = corrigirOrfaos();
     const c = fundirTabelasAdjacentes();
-    if(!a && !b && !c) break;
+    const e = corrigirCabecalhosOrfaos();
+    if(!a && !b && !c && !e) break;
     // Cede o controle ao navegador entre rodadas de reajuste — em orçamentos com
     // textos muito longos (muitas páginas), essa etapa de medição pode envolver
     // muitas leituras de layout seguidas, e sem essa pausa o navegador pode
