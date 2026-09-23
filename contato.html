@@ -31,9 +31,16 @@
   .toolbar p.hint{ margin:0; font-size:12px; line-height:1.4; color:#9a9ea5; }
   .toolbar-text{ min-width:0; }
   .toolbar-row{ display:flex; flex-wrap:wrap; gap:16px; align-items:center; justify-content:space-between; }
+  .toolbar-colors{ display:flex; align-items:center; gap:7px; margin-right:4px; }
+  .color-swatch{
+    width:26px; height:26px; border-radius:50%; border:2px solid rgba(255,255,255,.25);
+    cursor:pointer; padding:0; box-shadow:0 2px 6px rgba(0,0,0,.35); transition:transform .12s ease, border-color .12s ease;
+  }
+  .color-swatch:hover{ transform:translateY(-1px) scale(1.08); }
+  .color-swatch.active{ border-color:#fff; cursor:default; box-shadow:0 0 0 2px var(--orange, #E8792B), 0 2px 6px rgba(0,0,0,.35); }
   .btn-download{
     margin-left:auto; background:linear-gradient(135deg,var(--orange),#c95a10);
-    color:#fff; border:none; font-weight:700; font-size:13.5px; padding:11px 18px;
+    color:#fff; border:none; font-weight:700; font-size:12px; padding:8px 14px;
     border-radius:10px; cursor:pointer; box-shadow:0 4px 14px rgba(232,121,43,.28);
     transition:transform .12s ease;
   }
@@ -161,6 +168,12 @@
       <div class="toolbar-text">
         <h1>Gerador de Placa · Contato</h1>
         <p class="hint">Clique nos campos destacados para editar.</p>
+      </div>
+      <div class="toolbar-colors">
+      <button class="color-swatch" title="Preto Vivo" style="background:#17181b;" onclick="window.location.href='placa-preto-vivo.html'"></button>
+      <button class="color-swatch" title="Chumbo" style="background:#404349;" onclick="window.location.href='placa-chumbo.html'"></button>
+      <button class="color-swatch" title="Cimento" style="background:#78766f;" onclick="window.location.href='placa-cimento.html'"></button>
+      <button class="color-swatch" title="Laranja Neon" style="background:#FF6A00;" onclick="window.location.href='placa-laranja-neon.html'"></button>
       </div>
       <button class="btn-download" id="btn-download" onclick="baixarImagem()">⬇ Baixar Imagem (PNG)</button>
     </div>
