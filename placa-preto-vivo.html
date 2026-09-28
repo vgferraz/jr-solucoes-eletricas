@@ -133,13 +133,14 @@
     font-size:4cqw;
   }
   .c-icon svg{ width:4.4cqw; height:4.4cqw; }
-  .c-text{ display:flex; flex-direction:column; gap:.4cqw; min-width:0; }
+  .c-text{ display:flex; flex-direction:column; gap:.4cqw; min-width:0; flex:1; }
   .c-label{
     font-size:2.1cqw; letter-spacing:.14em; text-transform:uppercase; color:#8b929c; font-weight:700;
   }
   .c-value{
     font-size:2.5cqw; font-weight:700; color:#f2f2f0; outline:none; border-radius:4px;
     cursor:text; white-space:nowrap; overflow:hidden; text-overflow:ellipsis;
+    line-height:1.4; padding:0 .3cqw .7cqw;
   }
   .c-value:hover{ box-shadow:0 0 0 1.5px rgba(232,121,43,.55); background:rgba(232,121,43,.08); }
   .c-value:focus{ box-shadow:0 0 0 1.5px var(--orange); background:rgba(232,121,43,.12); }
@@ -290,11 +291,13 @@ function baixarImagem(){
   const btn = document.getElementById('btn-download');
   btn.classList.add('loading');
   btn.textContent = 'Gerando imagem...';
+  const ESCALA = 3;
   html2canvas(document.getElementById('plate'), {
     backgroundColor: '#121316',
-    scale: 3,
+    scale: ESCALA,
     useCORS: true
   }).then(canvas => {
+    canvas = arredondarCanvas(canvas, 20 * ESCALA);
     const link = document.createElement('a');
     link.download = 'placa-contato-jr-solucoes-eletricas.png';
     link.href = canvas.toDataURL('image/png');
@@ -314,11 +317,13 @@ function baixarPDF(){
   const btn = document.getElementById('btn-download-pdf');
   btn.classList.add('loading');
   btn.textContent = 'Gerando PDF...';
+  const ESCALA = 3;
   html2canvas(document.getElementById('plate'), {
     backgroundColor: '#121316',
-    scale: 3,
+    scale: ESCALA,
     useCORS: true
   }).then(canvas => {
+    canvas = arredondarCanvas(canvas, 20 * ESCALA, '#ffffff');
     const { jsPDF } = window.jspdf;
     const imgW = canvas.width, imgH = canvas.height;
     const orientation = imgW >= imgH ? 'landscape' : 'portrait';
@@ -333,6 +338,31 @@ function baixarPDF(){
     btn.innerHTML = '⬇ Download em PDF';
     showToast('✕ Não foi possível gerar o PDF');
   });
+}
+
+
+/* html2canvas não corta corretamente o border-radius do elemento na exportação
+   (limitação conhecida da biblioteca), deixando os cantos quadrados por baixo do
+   arredondamento visual. Para corrigir, desenhamos o resultado dentro de um canvas
+   novo, aplicando o recorte arredondado manualmente via Canvas 2D. */
+function arredondarCanvas(canvas, raioPx, corFundo){
+  const out = document.createElement('canvas');
+  out.width = canvas.width;
+  out.height = canvas.height;
+  const ctx = out.getContext('2d');
+  const r = raioPx, w = out.width, h = out.height;
+  /* JPEG (usado no PDF) não tem transparência: sem preencher os cantos, eles saem pretos. */
+  if(corFundo){ ctx.fillStyle = corFundo; ctx.fillRect(0, 0, w, h); }
+  ctx.beginPath();
+  ctx.moveTo(r, 0);
+  ctx.arcTo(w, 0, w, h, r);
+  ctx.arcTo(w, h, 0, h, r);
+  ctx.arcTo(0, h, 0, 0, r);
+  ctx.arcTo(0, 0, w, 0, r);
+  ctx.closePath();
+  ctx.clip();
+  ctx.drawImage(canvas, 0, 0);
+  return out;
 }
 
 window.addEventListener('load', renderQr);
